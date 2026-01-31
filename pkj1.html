@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tic Tac Toe Mobile</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --player-x: #3b82f6;
+            --player-o: #ef4444;
+            --accent: #10b981;
+            --cell-size: 100px;
+            --radius: 16px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #0f172a;
+                --card-bg: #1e293b;
+                --text-main: #f1f5f9;
+                --text-muted: #94a3b8;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        header {
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.025em;
+        }
+
+        .status-card {
+            background: var(--card-bg);
+            padding: 1rem;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .turn-indicator {
+            font-weight: 600;
+            font-size: 1.1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .turn-x { color: var(--player-x); }
+        .turn-o { color: var(--player-o); }
+        .active-turn { background: rgba(59, 130, 246, 0.1); outline: 2px solid var(--player-x); }
+        .active-turn.turn-o { background: rgba(239, 68, 68, 0.1); outline: 2px solid var(--player-o); }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 12px;
+            border-radius: var(--radius);
+            margin-bottom: 2rem;
+            aspect-ratio: 1 / 1;
+        }
+
+        .cell {
+            background: var(--card-bg);
+            aspect-ratio: 1 / 1;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: 900;
+            cursor: pointer;
+            transition: transform 0.1s active, background 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .cell:active {
+            transform: scale(0.95);
+        }
+
+        .cell.winner {
+            background: var(--accent);
+            color: white !important;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .cell[data-player="X"] { color: var(--player-x); }
+        .cell[data-player="O"] { color: var(--player-o); }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+        }
+
+        button {
+            background: var(--player-x);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: var(--radius);
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.4);
+            transition: opacity 0.2s;
+        }
+
+        button:active {
+            opacity: 0.8;
+        }
+
+        .score-board {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        /* SVG Icons for markers */
+        .icon {
+            width: 60%;
+            height: 60%;
+            stroke-width: 15;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke: currentColor;
+            display: none;
+        }
+
+        .cell[data-player="X"] .icon-x,
+        .cell[data-player="O"] .icon-o {
+            display: block;
+        }
+
+        #message {
+            margin-top: 1rem;
+            font-weight: 600;
+            min-height: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Tic Tac Toe</h1>
+            <p style="color: var(--text-muted)">Pass & Play</p>
+        </header>
+
+        <div class="status-card">
+            <div id="player-x-status" class="turn-indicator turn-x active-turn">Player X</div>
+            <div id="player-o-status" class="turn-indicator turn-o">Player O</div>
+        </div>
+
+        <div class="board" id="board">
+            <div class="cell" data-index="0">
+                <svg class="icon icon-x" viewBox="0 0 100 100"><path d="M20 20 L80 80 M80 20 L20 80"/></svg>
+                <svg class="icon icon-o" viewBox="0 0 100 100"><circle cx="50" cy="50" r="35"/></svg>
+            </div>
+            <div class="cell" data-index="1">
+                <svg class="icon icon-x" viewBox="0 0 100 100"><path d="M20 20 L80 80 M80 20 L20 80"/></svg>
+                <svg class="icon icon-o" viewBox="0 0 100 100"><circle cx="50" cy="50" r="35"/></svg>
+            </div>
+            <div class="cell" data-index="2">
+                <svg class="icon icon-x" viewBox="0 0 100 100"><path d="M20 20 L80 80 M80 20 L20 80"/></svg>
+                <svg class="icon icon-o" viewBox="0 0 100 100"><circle cx="50" cy="50" r="35"/></svg>
+            </div>
+            <div class="cell" data-index="3">
+                <svg class="icon icon-x" viewBox="0 0 100 100"><path d="M20 20 L80 80 M80 20 L20 80"/></svg>
+                <svg class="icon icon-o" viewBox="0 0 100 100"><circle cx="50" cy="50" r="35"/></svg>
+            </div>
+            <div class="cell" data-index="4">
+                <svg class="icon icon-x" viewBox="0 0 100 100"><path d="M20 20 L80 80 M80 20 L20 80"/></svg>
+                <svg class="icon icon-o" viewBox="0 0 100 100"><circle cx="50" cy="50" r="35"/></svg>
+            </div>
+            <div class="cell" data-index="5">
+                <svg class="icon icon-x" viewBox="0 0 100 100"><path d="M20 20 L80 80 M80 20 L20 80"/></svg>
+                <svg class="icon icon-o" viewBox="0 0 100 100"><circle cx="50" cy="50" r="35"/></svg>
+            </div>
+            <div class="cell" data-index="6">
+                <svg class="icon icon-x" viewBox="0 0 100 100"><path d="M20 20 L80 80 M80 20 L20 80"/></svg>
+                <svg class="icon icon-o" viewBox="0 0 100 100"><circle cx="50" cy="50" r="35"/></svg>
+            </div>
+            <div class="cell" data-index="7">
+                <svg class="icon icon-x" viewBox="0 0 100 100"><path d="M20 20 L80 80 M80 20 L20 80"/></svg>
+                <svg class="icon icon-o" viewBox="0 0 100 100"><circle cx="50" cy="50" r="35"/></svg>
+            </div>
+            <div class="cell" data-index="8">
+                <svg class="icon icon-x" viewBox="0 0 100 100"><path d="M20 20 L80 80 M80 20 L20 80"/></svg>
+                <svg class="icon icon-o" viewBox="0 0 100 100"><circle cx="50" cy="50" r="35"/></svg>
+            </div>
+        </div>
+
+        <div id="message"></div>
+
+        <div class="controls">
+            <button id="reset-btn">Restart Game</button>
+        </div>
+
+        <div class="score-board">
+            <div>X Wins: <span id="score-x">0</span></div>
+            <div>O Wins: <span id="score-o">0</span></div>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        let currentPlayer = 'X';
+        let gameState = ["", "", "", "", "", "", "", "", ""];
+        let gameActive = true;
+        let scores = { X: 0, O: 0 };
+
+        const winningConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+            [0, 4, 8], [2, 4, 6]             // Diagonals
+        ];
+
+        // Elements
+        const statusX = document.getElementById('player-x-status');
+        const statusO = document.getElementById('player-o-status');
+        const messageDisplay = document.getElementById('message');
+        const cells = document.querySelectorAll('.cell');
+        const resetBtn = document.getElementById('reset-btn');
+        const scoreXDisplay = document.getElementById('score-x');
+        const scoreODisplay = document.getElementById('score-o');
+
+        // Load scores from localStorage
+        function init() {
+            const savedScores = localStorage.getItem('ttt_scores');
+            if (savedScores) {
+                scores = JSON.parse(savedScores);
+                updateScoreDisplay();
+            }
+        }
+
+        function handleCellClick(e) {
+            const clickedCell = e.currentTarget;
+            const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
+
+            if (gameState[clickedCellIndex] !== "" || !gameActive) return;
+
+            gameState[clickedCellIndex] = currentPlayer;
+            clickedCell.setAttribute('data-player', currentPlayer);
+            
+            checkResult();
+        }
+
+        function checkResult() {
+            let roundWon = false;
+            let winningLine = [];
+
+            for (let i = 0; i <= 7; i++) {
+                const winCondition = winningConditions[i];
+                let a = gameState[winCondition[0]];
+                let b = gameState[winCondition[1]];
+                let c = gameState[winCondition[2]];
+                
+                if (a === '' || b === '' || c === '') continue;
+                
+                if (a === b && b === c) {
+                    roundWon = true;
+                    winningLine = winCondition;
+                    break;
+                }
+            }
+
+            if (roundWon) {
+                messageDisplay.innerText = `Player ${currentPlayer} Wins!`;
+                messageDisplay.style.color = currentPlayer === 'X' ? 'var(--player-x)' : 'var(--player-o)';
+                gameActive = false;
+                highlightWinner(winningLine);
+                updateScore(currentPlayer);
+                return;
+            }
+
+            let roundDraw = !gameState.includes("");
+            if (roundDraw) {
+                messageDisplay.innerText = "Draw!";
+                messageDisplay.style.color = "var(--text-muted)";
+                gameActive = false;
+                return;
+            }
+
+            changePlayer();
+        }
+
+        function changePlayer() {
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            statusX.classList.toggle('active-turn');
+            statusO.classList.toggle('active-turn');
+        }
+
+        function highlightWinner(line) {
+            line.forEach(index => {
+                cells[index].classList.add('winner');
+            });
+        }
+
+        function updateScore(player) {
+            scores[player]++;
+            updateScoreDisplay();
+            localStorage.setItem('ttt_scores', JSON.stringify(scores));
+        }
+
+        function updateScoreDisplay() {
+            scoreXDisplay.innerText = scores.X;
+            scoreODisplay.innerText = scores.O;
+        }
+
+        function restartGame() {
+            gameActive = true;
+            currentPlayer = 'X';
+            gameState = ["", "", "", "", "", "", "", "", ""];
+            messageDisplay.innerText = "";
+            statusX.classList.add('active-turn');
+            statusO.classList.remove('active-turn');
+            cells.forEach(cell => {
+                cell.removeAttribute('data-player');
+                cell.classList.remove('winner');
+            });
+        }
+
+        // Listeners
+        cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+        resetBtn.addEventListener('click', restartGame);
+
+        // Service Worker for Offline Support
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                const CACHE_NAME = 'ttt-v1';
+                self.addEventListener('install', (e) => {
+                    e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(['./'])));
+                });
+                self.addEventListener('fetch', (e) => {
+                    e.respondWith(caches.match(e.request).then(response => response || fetch(e.request)));
+                });
+            `;
+            const blob = new Blob([swCode], { type: 'application/javascript' });
+            const swUrl = URL.createObjectURL(blob);
+            navigator.serviceWorker.register(swUrl).catch(console.error);
+        }
+
+        init();
+    </script>
+</body>
+</html>

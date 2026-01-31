@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Duo Play - Local Multiplayer Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap');
+
+        :root {
+            --accent: #00f2ff;
+            --accent-glow: rgba(0, 242, 255, 0.5);
+            --bg-dark: #050510;
+            --card-bg: #16162d; 
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: white;
+            font-family: 'Rajdhani', sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .heading-font { font-family: 'Orbitron', sans-serif; }
+
+        .game-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .game-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--accent);
+            box-shadow: 0 0 25px var(--accent-glow);
+            background: #1c1c3a;
+        }
+
+        .icon-box {
+            font-size: 3.5rem;
+            color: var(--accent);
+            text-shadow: 0 0 15px var(--accent-glow);
+            margin-bottom: 1.5rem;
+        }
+
+        #game-view {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: black;
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+        }
+
+        iframe {
+            width: 100%;
+            flex-grow: 1;
+            border: none;
+            background: #000;
+        }
+
+        .nav-header {
+            background: #0a0a1a;
+            border-bottom: 2px solid var(--accent);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid transparent;
+            cursor: pointer;
+        }
+
+        .back-btn:hover {
+            background: var(--accent);
+            color: black;
+            border-color: white;
+        }
+
+        .status-pill {
+            background: rgba(0, 242, 255, 0.1);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 2px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .fade-in { animation: fadeIn 0.4s ease forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .page-content { padding-bottom: 80px; }
+    </style>
+</head>
+<body>
+    <div id="home-view" class="page-content container mx-auto px-6 py-8">
+        <header class="text-center mb-12">
+            <div class="flex justify-center mb-4">
+                <span class="status-pill">6 Games Ready</span>
+            </div>
+            <h1 class="heading-font text-5xl md:text-7xl font-bold mb-4 tracking-tighter">
+                DUO <span class="text-[#00f2ff]">PLAY</span>
+            </h1>
+            <p class="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto">
+                Instant local multiplayer gaming hub.
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            <div class="game-card p-10 rounded-2xl group" onclick="loadGame('ttt')">
+                <div class="icon-box group-hover:scale-110 transition-transform"><i class="fas fa-times"></i></div>
+                <h3 class="heading-font text-2xl font-bold mb-2">Tic Tac Toe</h3>
+                <p class="text-gray-400 text-sm">Classic Strategy</p>
+            </div>
+            <div class="game-card p-10 rounded-2xl group" onclick="loadGame('chess')">
+                <div class="icon-box group-hover:scale-110 transition-transform"><i class="fas fa-chess-knight"></i></div>
+                <h3 class="heading-font text-2xl font-bold mb-2">Chess</h3>
+                <p class="text-gray-400 text-sm">Grandmaster Duel</p>
+            </div>
+            <div class="game-card p-10 rounded-2xl group" onclick="loadGame('racing')">
+                <div class="icon-box group-hover:scale-110 transition-transform"><i class="fas fa-car-side"></i></div>
+                <h3 class="heading-font text-2xl font-bold mb-2">Duo Racer</h3>
+                <p class="text-gray-400 text-sm">Split-Screen Race</p>
+            </div>
+            <div class="game-card p-10 rounded-2xl group" onclick="loadGame('carrom')">
+                <div class="icon-box group-hover:scale-110 transition-transform"><i class="fas fa-circle-dot"></i></div>
+                <h3 class="heading-font text-2xl font-bold mb-2">Pro Carrom</h3>
+                <p class="text-gray-400 text-sm">Physics Simulation</p>
+            </div>
+            <div class="game-card p-10 rounded-2xl group" onclick="loadGame('pong')">
+                <div class="icon-box group-hover:scale-110 transition-transform"><i class="fas fa-table-tennis-paddle-ball"></i></div>
+                <h3 class="heading-font text-2xl font-bold mb-2">Pong Duel</h3>
+                <p class="text-gray-400 text-sm">Reflex Battle</p>
+            </div>
+            <div class="game-card p-10 rounded-2xl group" onclick="loadGame('space')">
+                <div class="icon-box group-hover:scale-110 transition-transform"><i class="fas fa-shuttle-space"></i></div>
+                <h3 class="heading-font text-2xl font-bold mb-2">Stellar Duel</h3>
+                <p class="text-gray-400 text-sm">Space Combat</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-view">
+        <div class="nav-header">
+            <button class="back-btn" onclick="closeGame()"><i class="fas fa-chevron-left"></i> HUB</button>
+            <h2 id="game-title" class="heading-font text-lg font-bold text-[#00f2ff] tracking-widest uppercase"></h2>
+            <button class="back-btn" onclick="reloadGame()"><i class="fas fa-undo"></i></button>
+        </div>
+        <div class="flex-grow"><iframe id="game-frame" src="about:blank"></iframe></div>
+    </div>
+
+    <script>
+        const gameMap = {
+            'ttt': { title: 'Tic Tac Toe', file: 'pkj1.html' },
+            'chess': { title: 'Chess', file: 'pkj.html' },
+            'racing': { title: 'Duo Racer', file: 'pkj2.html' },
+            'carrom': { title: 'Mobile Carrom', file: 'game4.html' },
+            'pong': { title: 'Pong Duel', file: 'pkj3.html' },
+            'space': { title: 'Stellar Showdown', file: 'pkj5.html' }
+        };
+
+        const homeView = document.getElementById('home-view');
+        const gameView = document.getElementById('game-view');
+        const gameFrame = document.getElementById('game-frame');
+        const gameTitle = document.getElementById('game-title');
+        let currentId = null;
+
+        function loadGame(id) {
+            currentId = id;
+            gameTitle.innerText = gameMap[id].title;
+            gameFrame.src = gameMap[id].file;
+            homeView.style.display = 'none';
+            gameView.style.display = 'flex';
+            gameView.classList.add('fade-in');
+        }
+
+        function closeGame() {
+            gameView.style.display = 'none';
+            homeView.style.display = 'block';
+            gameFrame.src = 'about:blank';
+        }
+
+        function reloadGame() {
+            if (currentId) gameFrame.src = gameMap[currentId].file;
+        }
+    </script>
+</body>
+</html>

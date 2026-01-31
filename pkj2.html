@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Duo Racer - 2 Player Local</title>
+    <style>
+        :root {
+            --p1-color: #ff4757;
+            --p2-color: #1e90ff;
+            --bg-color: #2f3542;
+            --track-color: #57606f;
+            --ui-font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: var(--ui-font);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Split Screen Container */
+        #game-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .viewport {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 4px solid #000;
+        }
+
+        .viewport:last-child {
+            border-bottom: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Overlay UI */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            color: white;
+            font-weight: bold;
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.5);
+            font-size: 1.2rem;
+        }
+
+        /* Controls */
+        .controls {
+            pointer-events: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 10px;
+            gap: 10px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .ctrl-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            backdrop-filter: blur(4px);
+            active-color: rgba(255,255,255,0.5);
+        }
+
+        .ctrl-btn:active {
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(0.95);
+        }
+
+        .gas-btn {
+            width: 80px;
+            height: 80px;
+            background: rgba(76, 209, 55, 0.4);
+        }
+
+        /* Game States */
+        #menu, #winner-screen, #countdown {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            color: white;
+            text-align: center;
+        }
+
+        #countdown {
+            background: transparent;
+            font-size: 8rem;
+            font-weight: 900;
+            text-shadow: 0 0 20px rgba(255,255,255,0.5);
+        }
+
+        h1 { font-size: 2.5rem; margin-bottom: 20px; color: #f1c40f; }
+        .btn-main {
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #1e8449;
+            margin: 10px;
+        }
+
+        .btn-main:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #1e8449;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Rotate Player 1 UI if they are sitting opposite */
+        /* Enable this if you want players to face each other */
+        /* .viewport:first-child .overlay { transform: rotate(180deg); } */
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Player 1 Viewport -->
+        <div class="viewport" id="vp1">
+            <canvas id="canvas1"></canvas>
+            <div class="overlay">
+                <div class="stats">
+                    <span id="p1-laps">Lap: 1/3</span>
+                    <span style="color: var(--p1-color)">PLAYER 1</span>
+                    <span id="p1-speed">0 km/h</span>
+                </div>
+                <div class="controls">
+                    <div class="btn-group">
+                        <div class="ctrl-btn" id="p1-left">←</div>
+                        <div class="ctrl-btn" id="p1-right">→</div>
+                    </div>
+                    <div class="ctrl-btn gas-btn" id="p1-gas">GAS</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Player 2 Viewport -->
+        <div class="viewport" id="vp2">
+            <canvas id="canvas2"></canvas>
+            <div class="overlay">
+                <div class="stats">
+                    <span id="p2-laps">Lap: 1/3</span>
+                    <span style="color: var(--p2-color)">PLAYER 2</span>
+                    <span id="p2-speed">0 km/h</span>
+                </div>
+                <div class="controls">
+                    <div class="btn-group">
+                        <div class="ctrl-btn" id="p2-left">←</div>
+                        <div class="ctrl-btn" id="p2-right">→</div>
+                    </div>
+                    <div class="ctrl-btn gas-btn" id="p2-gas">GAS</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI States -->
+    <div id="menu">
+        <h1>DUO RACER</h1>
+        <p>Grab a friend and race on one phone!</p>
+        <button class="btn-main" onclick="startGame()">START RACE</button>
+        <p style="margin-top: 20px; opacity: 0.7;">3 Laps to Win</p>
+    </div>
+
+    <div id="countdown" class="hidden">3</div>
+
+    <div id="winner-screen" class="hidden">
+        <h1 id="winner-text">PLAYER 1 WINS!</h1>
+        <button class="btn-main" onclick="resetGame()">PLAY AGAIN</button>
+        <button class="btn-main" style="background: #7f8c8d; box-shadow: 0 5px 0 #636e72;" onclick="showMenu()">MENU</button>
+    </div>
+
+    <script>
+        /**
+         * GAME CONFIGURATION
+         */
+        const CONFIG = {
+            maxLaps: 3,
+            trackWidth: 120,
+            accel: 0.15,
+            friction: 0.97,
+            turnSpeed: 0.045,
+            maxSpeed: 8,
+            trackPoints: [
+                {x: 200, y: 200}, {x: 800, y: 200}, {x: 1000, y: 400},
+                {x: 1000, y: 800}, {x: 800, y: 1000}, {x: 200, y: 1000},
+                {x: 0, y: 800}, {x: 0, y: 400}
+            ]
+        };
+
+        const canvas1 = document.getElementById('canvas1');
+        const canvas2 = document.getElementById('canvas2');
+        const ctx1 = canvas1.getContext('2d');
+        const ctx2 = canvas2.getContext('2d');
+
+        let gameState = 'MENU'; // MENU, COUNTDOWN, RACING, FINISHED
+        let lastTime = 0;
+
+        // Player States
+        const p1 = {
+            id: 1, color: '#ff4757', x: 200, y: 150, angle: 0, speed: 0, 
+            laps: 0, checkpoint: 0, finished: false,
+            inputs: { gas: false, left: false, right: false }
+        };
+        const p2 = {
+            id: 2, color: '#1e90ff', x: 200, y: 250, angle: 0, speed: 0, 
+            laps: 0, checkpoint: 0, finished: false,
+            inputs: { gas: false, left: false, right: false }
+        };
+
+        /**
+         * INITIALIZATION
+         */
+        function init() {
+            resize();
+            window.addEventListener('resize', resize);
+            setupInput(p1, 'p1');
+            setupInput(p2, 'p2');
+            requestAnimationFrame(gameLoop);
+            
+            // Register service worker for offline
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    self.addEventListener('install', e => e.waitUntil(caches.open('duoracer-v1').then(c => c.addAll(['/']))));
+                    self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
+                `;
+                const blob = new Blob([swCode], {type: 'application/javascript'});
+                navigator.serviceWorker.register(URL.createObjectURL(blob));
+            }
+        }
+
+        function resize() {
+            canvas1.width = canvas1.clientWidth;
+            canvas1.height = canvas1.clientHeight;
+            canvas2.width = canvas2.clientWidth;
+            canvas2.height = canvas2.clientHeight;
+        }
+
+        function setupInput(player, prefix) {
+            const bind = (id, key) => {
+                const el = document.getElementById(`${prefix}-${id}`);
+                const set = (val) => player.inputs[key] = val;
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); set(true); });
+                el.addEventListener('touchend', (e) => { e.preventDefault(); set(false); });
+                el.addEventListener('mousedown', () => set(true));
+                el.addEventListener('mouseup', () => set(false));
+                el.addEventListener('mouseleave', () => set(false));
+            };
+            bind('gas', 'gas');
+            bind('left', 'left');
+            bind('right', 'right');
+        }
+
+        /**
+         * GAME LOGIC
+         */
+        function startGame() {
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('winner-screen').classList.add('hidden');
+            resetPlayer(p1, 200, 150);
+            resetPlayer(p2, 200, 250);
+            
+            gameState = 'COUNTDOWN';
+            const cd = document.getElementById('countdown');
+            cd.classList.remove('hidden');
+            
+            let count = 3;
+            cd.innerText = count;
+            const timer = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    cd.innerText = count;
+                } else if (count === 0) {
+                    cd.innerText = "GO!";
+                } else {
+                    clearInterval(timer);
+                    cd.classList.add('hidden');
+                    gameState = 'RACING';
+                }
+            }, 1000);
+        }
+
+        function resetPlayer(p, x, y) {
+            p.x = x; p.y = y; p.angle = 0; p.speed = 0;
+            p.laps = 0; p.checkpoint = 0; p.finished = false;
+        }
+
+        function resetGame() { startGame(); }
+        function showMenu() {
+            document.getElementById('winner-screen').classList.add('hidden');
+            document.getElementById('menu').classList.remove('hidden');
+            gameState = 'MENU';
+        }
+
+        function update(dt) {
+            if (gameState !== 'RACING') return;
+
+            [p1, p2].forEach(p => {
+                if (p.finished) return;
+
+                // Physics
+                if (p.inputs.gas) {
+                    p.speed += CONFIG.accel;
+                }
+                p.speed *= CONFIG.friction;
+                if (p.speed > CONFIG.maxSpeed) p.speed = CONFIG.maxSpeed;
+
+                if (p.inputs.left) p.angle -= CONFIG.turnSpeed * (p.speed / 5 + 0.5);
+                if (p.inputs.right) p.angle += CONFIG.turnSpeed * (p.speed / 5 + 0.5);
+
+                const nextX = p.x + Math.cos(p.angle) * p.speed;
+                const nextY = p.y + Math.sin(p.angle) * p.speed;
+
+                // Simple Track Collision
+                const distToTrack = getDistanceToTrack(nextX, nextY);
+                if (distToTrack < CONFIG.trackWidth / 2) {
+                    p.x = nextX;
+                    p.y = nextY;
+                } else {
+                    p.speed *= 0.5; // Wall penalty
+                }
+
+                // Lap / Checkpoint Logic
+                checkProgress(p);
+            });
+        }
+
+        function getDistanceToTrack(x, y) {
+            let minDistance = Infinity;
+            for (let i = 0; i < CONFIG.trackPoints.length; i++) {
+                const p1 = CONFIG.trackPoints[i];
+                const p2 = CONFIG.trackPoints[(i + 1) % CONFIG.trackPoints.length];
+                minDistance = Math.min(minDistance, distToSegment({x, y}, p1, p2));
+            }
+            return minDistance;
+        }
+
+        // Math helpers for line segments
+        function distToSegment(p, v, w) {
+            const l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
+            if (l2 == 0) return Math.sqrt(Math.pow(p.x - v.x, 2) + Math.pow(p.y - v.y, 2));
+            let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            return Math.sqrt(Math.pow(p.x - (v.x + t * (w.x - v.x)), 2) + Math.pow(p.y - (v.y + t * (w.y - v.y)), 2));
+        }
+
+        function checkProgress(p) {
+            // Checkpoints are indices of trackPoints
+            // Finish line is between last and first point (x=200 region)
+            const finishLineX = 200;
+            
+            // Logic: Must pass halfway point (index 4) before lap counts at finish line
+            if (p.x > 800) p.checkpoint = 1; 
+            
+            if (p.checkpoint === 1 && p.x < finishLineX && Math.abs(p.y - 200) < 200) {
+                p.laps++;
+                p.checkpoint = 0;
+                if (p.laps >= CONFIG.maxLaps) {
+                    p.finished = true;
+                    endGame(p.id);
+                }
+            }
+
+            // Update UI
+            document.getElementById(`p${p.id}-laps`).innerText = `Lap: ${Math.min(p.laps + 1, CONFIG.maxLaps)}/${CONFIG.maxLaps}`;
+            document.getElementById(`p${p.id}-speed`).innerText = `${Math.round(p.speed * 20)} km/h`;
+        }
+
+        function endGame(winnerId) {
+            gameState = 'FINISHED';
+            const screen = document.getElementById('winner-screen');
+            const txt = document.getElementById('winner-text');
+            txt.innerText = `PLAYER ${winnerId} WINS!`;
+            txt.style.color = winnerId === 1 ? 'var(--p1-color)' : 'var(--p2-color)';
+            screen.classList.remove('hidden');
+        }
+
+        /**
+         * RENDERING
+         */
+        function draw(ctx, playerFocus) {
+            ctx.save();
+            // Camera follows player
+            const camX = canvas1.width / 2 - playerFocus.x;
+            const camY = canvas1.height / 2 - playerFocus.y;
+            ctx.translate(camX, camY);
+
+            // Draw Background (Grass)
+            ctx.fillStyle = '#2ecc71';
+            ctx.fillRect(-2000, -2000, 4000, 4000);
+
+            // Draw Track
+            ctx.strokeStyle = '#34495e';
+            ctx.lineWidth = CONFIG.trackWidth;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            CONFIG.trackPoints.forEach((p, i) => {
+                if (i === 0) ctx.moveTo(p.x, p.y);
+                else ctx.lineTo(p.x, p.y);
+            });
+            ctx.closePath();
+            ctx.stroke();
+
+            // Track Lines (White dashed)
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([20, 20]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Finish Line
+            ctx.fillStyle = 'white';
+            ctx.fillRect(190, 140, 20, 120);
+            ctx.fillStyle = 'black';
+            for(let i=0; i<6; i++) ctx.fillRect(190, 140 + i*20 + (i%2?0:10), 10, 10);
+
+            // Draw Players
+            drawCar(ctx, p1);
+            drawCar(ctx, p2);
+
+            ctx.restore();
+        }
+
+        function drawCar(ctx, p) {
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.angle);
+            
+            // Body
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-20, -12, 40, 24);
+            
+            // Details (Windshield)
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.fillRect(5, -10, 10, 20);
+            
+            // Spoiler
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-22, -12, 5, 24);
+
+            ctx.restore();
+        }
+
+        function gameLoop(time) {
+            const dt = time - lastTime;
+            lastTime = time;
+
+            update(dt);
+            
+            ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
+            ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
+            
+            draw(ctx1, p1);
+            draw(ctx2, p2);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start
+        window.onload = init;
+    </script>
+</body>
+</html>

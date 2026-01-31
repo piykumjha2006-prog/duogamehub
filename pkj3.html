@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Duel: Table Tennis</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --table-color: #2e7d32;
+            --line-color: rgba(255, 255, 255, 0.5);
+            --p1-color: #2196f3;
+            --p2-color: #f44336;
+            --text-color: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            touch-action: none; /* Prevents scrolling and zooming while playing */
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            color: var(--text-color);
+        }
+
+        /* UI Overlays */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        #scoreboard {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 20px;
+            font-size: 3rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .score-p1 { color: var(--p1-color); }
+        .score-p2 { color: var(--p2-color); }
+
+        #game-controls {
+            pointer-events: auto;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 2rem;
+            border-radius: 15px;
+            border: 2px solid white;
+            min-width: 280px;
+        }
+
+        #game-controls h1 {
+            margin-bottom: 0.5rem;
+            font-size: 2rem;
+        }
+
+        #game-controls p {
+            margin-bottom: 1.5rem;
+            opacity: 0.8;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            background: var(--table-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            box-shadow: 0 4px 0 #1b5e20;
+            transition: transform 0.1s;
+        }
+
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #1b5e20;
+        }
+
+        .side-label {
+            position: absolute;
+            top: 50%;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.3;
+            writing-mode: vertical-rl;
+            transform: translateY(-50%);
+        }
+        #label-p1 { left: 10px; transform: translateY(-50%) rotate(180deg); color: var(--p1-color); }
+        #label-p2 { right: 10px; color: var(--p2-color); }
+
+        /* Game Canvas */
+        #game-container {
+            flex-grow: 1;
+            position: relative;
+            background-color: var(--table-color);
+            overflow: hidden;
+        }
+
+        /* Table lines */
+        .net {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: repeating-linear-gradient(
+                to bottom,
+                var(--line-color),
+                var(--line-color) 10px,
+                transparent 10px,
+                transparent 20px
+            );
+            transform: translateX(-50%);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="scoreboard">
+            <span class="score-p1" id="p1-score">0</span>
+            <span class="score-p2" id="p2-score">0</span>
+        </div>
+
+        <div id="label-p1" class="side-label">Player 1</div>
+        <div id="label-p2" class="side-label">Player 2</div>
+
+        <div id="game-controls">
+            <h1 id="menu-title">PONG DUEL</h1>
+            <p id="menu-subtitle">One phone. Two players.</p>
+            <button id="start-btn">START GAME</button>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <div class="net"></div>
+        <canvas id="pongCanvas"></canvas>
+    </div>
+
+    <script>
+        /**
+         * SERVICE WORKER FOR OFFLINE SUPPORT
+         */
+        const swCode = `
+            const CACHE_NAME = 'pong-v2';
+            const ASSETS = ['/', '/index.html'];
+            self.addEventListener('install', e => {
+                e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
+            });
+            self.addEventListener('fetch', e => {
+                e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
+            });
+        `;
+        const blob = new Blob([swCode], {type: 'application/javascript'});
+        const swUrl = URL.createObjectURL(blob);
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register(swUrl).catch(err => console.log('SW failed', err));
+        }
+
+        /**
+         * GAME LOGIC
+         */
+        const canvas = document.getElementById('pongCanvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('start-btn');
+        const controls = document.getElementById('game-controls');
+        const menuTitle = document.getElementById('menu-title');
+        const menuSubtitle = document.getElementById('menu-subtitle');
+        const p1ScoreDisplay = document.getElementById('p1-score');
+        const p2ScoreDisplay = document.getElementById('p2-score');
+
+        // Game State
+        let gameRunning = false;
+        let p1Score = 0;
+        let p2Score = 0;
+        const WINNING_SCORE = 10;
+
+        // Configuration
+        const PADDLE_WIDTH = 12;
+        const PADDLE_HEIGHT = 80;
+        const BALL_SIZE = 8;
+        const INITIAL_BALL_SPEED = 4;
+        const SPEED_INCREMENT = 0.2;
+
+        const player1 = {
+            x: 10,
+            y: 0,
+            width: PADDLE_WIDTH,
+            height: PADDLE_HEIGHT,
+            color: '#2196f3'
+        };
+
+        const player2 = {
+            x: 0, // set in resize
+            y: 0,
+            width: PADDLE_WIDTH,
+            height: PADDLE_HEIGHT,
+            color: '#f44336'
+        };
+
+        const ball = {
+            x: 0,
+            y: 0,
+            radius: BALL_SIZE,
+            speed: INITIAL_BALL_SPEED,
+            velocityX: 5,
+            velocityY: 5,
+            color: "#FFFFFF"
+        };
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            player1.y = canvas.height / 2 - PADDLE_HEIGHT / 2;
+            player2.x = canvas.width - PADDLE_WIDTH - 10;
+            player2.y = canvas.height / 2 - PADDLE_HEIGHT / 2;
+            resetBall();
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        function resetBall() {
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height / 2;
+            ball.speed = INITIAL_BALL_SPEED;
+            ball.velocityX = (Math.random() > 0.5 ? 1 : -1) * ball.speed;
+            ball.velocityY = (Math.random() > 0.5 ? 1 : -1) * (ball.speed * 0.7);
+        }
+
+        function drawRect(x, y, w, h, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, w, h);
+        }
+
+        function drawCircle(x, y, r, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2, false);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function collision(b, p) {
+            return b.x + b.radius > p.x && 
+                   b.y + b.radius > p.y && 
+                   b.x - b.radius < p.x + p.width && 
+                   b.y - b.radius < p.y + p.height;
+        }
+
+        function endGame(winner) {
+            gameRunning = false;
+            controls.style.display = 'block';
+            menuTitle.innerText = "MATCH OVER";
+            menuTitle.style.color = (winner === 1) ? player1.color : player2.color;
+            menuSubtitle.innerText = `Player ${winner} Wins!`;
+            startBtn.innerText = "PLAY AGAIN";
+        }
+
+        function update() {
+            if (!gameRunning) return;
+
+            ball.x += ball.velocityX;
+            ball.y += ball.velocityY;
+
+            if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
+                ball.velocityY = -ball.velocityY;
+            }
+
+            let player = (ball.x < canvas.width / 2) ? player1 : player2;
+
+            if (collision(ball, player)) {
+                let collidePoint = (ball.y - (player.y + player.height / 2));
+                collidePoint = collidePoint / (player.height / 2);
+                let angleRad = (Math.PI / 4) * collidePoint;
+                let direction = (ball.x < canvas.width / 2) ? 1 : -1;
+                ball.velocityX = direction * ball.speed * Math.cos(angleRad);
+                ball.velocityY = ball.speed * Math.sin(angleRad);
+                ball.speed += SPEED_INCREMENT;
+            }
+
+            // Scoring
+            if (ball.x - ball.radius < 0) {
+                p2Score++;
+                p2ScoreDisplay.innerText = p2Score;
+                if (p2Score >= WINNING_SCORE) {
+                    endGame(2);
+                } else {
+                    resetBall();
+                }
+            } else if (ball.x + ball.radius > canvas.width) {
+                p1Score++;
+                p1ScoreDisplay.innerText = p1Score;
+                if (p1Score >= WINNING_SCORE) {
+                    endGame(1);
+                } else {
+                    resetBall();
+                }
+            }
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawRect(player1.x, player1.y, player1.width, player1.height, player1.color);
+            drawRect(player2.x, player2.y, player2.width, player2.height, player2.color);
+            drawCircle(ball.x, ball.y, ball.radius, ball.color);
+        }
+
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function handleTouch(e) {
+            e.preventDefault();
+            const touches = e.touches;
+            for (let i = 0; i < touches.length; i++) {
+                const touch = touches[i];
+                const touchY = touch.clientY;
+                const touchX = touch.clientX;
+
+                if (touchX < canvas.width / 2) {
+                    player1.y = touchY - player1.height / 2;
+                } else {
+                    player2.y = touchY - player2.height / 2;
+                }
+            }
+
+            if (player1.y < 0) player1.y = 0;
+            if (player1.y + player1.height > canvas.height) player1.y = canvas.height - player1.height;
+            if (player2.y < 0) player2.y = 0;
+            if (player2.y + player2.height > canvas.height) player2.y = canvas.height - player2.height;
+        }
+
+        canvas.addEventListener('touchstart', handleTouch);
+        canvas.addEventListener('touchmove', handleTouch);
+
+        startBtn.addEventListener('click', () => {
+            controls.style.display = 'none';
+            p1Score = 0;
+            p2Score = 0;
+            p1ScoreDisplay.innerText = '0';
+            p2ScoreDisplay.innerText = '0';
+            resetBall();
+            gameRunning = true;
+        });
+
+        gameLoop();
+    </script>
+</body>
+</html>
