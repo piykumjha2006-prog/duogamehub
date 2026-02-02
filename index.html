@@ -56,59 +56,26 @@
         }
 
         #game-view {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
+             position: fixed;
+             top: 0; 
+             left: 0;
+             width: 100vw; 
+              /* Use dvh (dynamic viewport height) for better mobile support */
+            height: 100dvh; 
             background: black;
             z-index: 2000;
             display: none;
             flex-direction: column;
+            overflow: hidden; /* Prevent the hub itself from scrolling */
         }
 
         iframe {
             width: 100%;
-            flex-grow: 1;
+            /* This ensures the game takes up everything except the 60px header */
+            height: calc(100% - 60px); 
             border: none;
             background: #000;
-        }
-
-        .nav-header {
-            background: #0a0a1a;
-            border-bottom: 2px solid var(--accent);
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 60px;
-        }
-
-        .back-btn {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border: 1px solid transparent;
-            cursor: pointer;
-        }
-
-        .back-btn:hover {
-            background: var(--accent);
-            color: black;
-            border-color: white;
-        }
-
-        .status-pill {
-            background: rgba(0, 242, 255, 0.1);
-            border: 1px solid var(--accent);
-            color: var(--accent);
-            padding: 2px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            font-weight: bold;
+            display: block;
         }
 
         .fade-in { animation: fadeIn 0.4s ease forwards; }

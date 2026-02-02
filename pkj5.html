@@ -17,15 +17,17 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        body, html {
+        body {
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
+            /* Use 100dvh to account for mobile browser UI bars */
+            height: 100dvh; 
+            width: 100vw;
             overflow: hidden;
-            background-color: var(--bg-dark);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
         #game-container {

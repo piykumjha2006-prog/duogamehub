@@ -23,13 +23,16 @@
         }
 
         body {
-            background-color: var(--bg-color);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            height: 100vh;
+            margin: 0;
+            padding: 0;
+            /* Use 100dvh to account for mobile browser UI bars */
+            height: 100dvh; 
+            width: 100vw;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            color: var(--text-color);
+            align-items: center;
+            justify-content: center;
         }
 
         /* UI Overlays */
